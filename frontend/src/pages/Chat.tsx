@@ -11,26 +11,44 @@ import {
   sendChatRequest,
 } from "../helpers/api-communicator";
 import toast from "react-hot-toast";
+
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
+
 const Chat = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const auth = useAuth();
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
+
   const handleSubmit = async () => {
-    const content = inputRef.current?.value as string;
-    if (inputRef && inputRef.current) {
+    const content = inputRef.current?.value.trim() || ""; // Ensure content is trimmed
+    if (!content) return; // Prevent sending empty messages
+
+    if (inputRef.current) {
       inputRef.current.value = "";
     }
+
     const newMessage: Message = { role: "user", content };
     setChatMessages((prev) => [...prev, newMessage]);
-    const chatData = await sendChatRequest(content);
-    setChatMessages([...chatData.chats]);
-    //
+
+    try {
+      const chatData = await sendChatRequest(content);
+      if (Array.isArray(chatData.chats)) {
+        setChatMessages([...chatData.chats]);
+      } else {
+        window.location.reload();
+        console.error('chatData.chats is not an array:', chatData.chats);
+        toast.error('Failed to load chats');
+      }
+    } catch (error) {
+      console.error('Error sending chat request:', error);
+      toast.error('Failed to send message');
+    }
   };
+
   const handleDeleteChats = async () => {
     try {
       toast.loading("Deleting Chats", { id: "deletechats" });
@@ -42,13 +60,19 @@ const Chat = () => {
       toast.error("Deleting chats failed", { id: "deletechats" });
     }
   };
+
   useLayoutEffect(() => {
     if (auth?.isLoggedIn && auth.user) {
       toast.loading("Loading Chats", { id: "loadchats" });
       getUserChats()
         .then((data) => {
-          setChatMessages([...data.chats]);
-          toast.success("Successfully loaded chats", { id: "loadchats" });
+          if (Array.isArray(data.chats)) {
+            setChatMessages([...data.chats]);
+            toast.success("Successfully loaded chats", { id: "loadchats" });
+          } else {
+            console.error('data.chats is not an array:', data.chats);
+            toast.error('Failed to load chats');
+          }
         })
         .catch((err) => {
           console.log(err);
@@ -56,11 +80,18 @@ const Chat = () => {
         });
     }
   }, [auth]);
+
   useEffect(() => {
     if (!auth?.user) {
-      return navigate("/login");
+      navigate("/login");
     }
   }, [auth]);
+
+  const userName = auth?.user?.name;
+  const userInitials = userName
+    ? userName.split(" ").map(name => name[0]).join("")
+    : "";
+
   return (
     <Box
       sx={{
@@ -99,8 +130,7 @@ const Chat = () => {
               fontWeight: 700,
             }}
           >
-            {auth?.user?.name[0]}
-            {auth?.user?.name.split(" ")[1][0]}
+            {userInitials || "N/A"}
           </Avatar>
           <Typography sx={{ mx: "auto", fontFamily: "work sans" }}>
             You are talking to a ChatBOT
@@ -162,7 +192,6 @@ const Chat = () => {
           }}
         >
           {chatMessages.map((chat, index) => (
-            //@ts-ignore
             <ChatItem content={chat.content} role={chat.role} key={index} />
           ))}
         </Box>
@@ -175,7 +204,6 @@ const Chat = () => {
             margin: "auto",
           }}
         >
-          {" "}
           <input
             ref={inputRef}
             type="text"
@@ -187,6 +215,12 @@ const Chat = () => {
               outline: "none",
               color: "white",
               fontSize: "20px",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault(); // Prevent form submission
+                handleSubmit();
+              }
             }}
           />
           <IconButton onClick={handleSubmit} sx={{ color: "white", mx: 1 }}>
