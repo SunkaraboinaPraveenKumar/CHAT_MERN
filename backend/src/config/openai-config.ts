@@ -1,9 +1,13 @@
-import {Configuration}  from "openai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const configureOpenAI = () => {
-  const config = new Configuration({
-    apiKey: process.env.OPEN_AI_SECRET,
-    organization: process.env.OPENAI_ORAGANIZATION_ID,
-  });
-  return config;
+// Function to configure Google Generative AI client
+export const configureGemini = () => {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("API key not found in environment variables");
+  }
+
+  // Initialize GoogleGenerativeAI with API key
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI;
 };
