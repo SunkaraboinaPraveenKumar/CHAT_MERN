@@ -106,3 +106,26 @@ export const verfiyUser = async (req:Request, res:Response, next:NextFunction) =
         return res.status(500).json({ message: 'Error', cause: error.message });
     }
 };
+
+export const userLogout = async (req:Request, res:Response, next:NextFunction) => {
+    try {
+        //user login
+        const user=await User.findById({_id:res.locals.jwtData.id});
+        if(!user){
+            return res.status(401).send("User Not Registered or Tokem malfunctioned!");
+        }
+        if(user._id.toString()!==res.locals.jwtData.id){
+            return res.status(401).send("Permissions Donot Match!!");
+        }
+        res.clearCookie(COOKIE_NAME,{
+            httpOnly:true,
+            domain:"localhost",
+            signed:true,
+            path:"/"
+        });
+        return res.status(200).json({ message: 'ok', name:user.name,email:user.email });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ message: 'Error', cause: error.message });
+    }
+};
